@@ -73,7 +73,7 @@ export function LeadCard({ lead, index, onUpdate, onRemove }: LeadCardProps) {
       </CardHeader>
       {expanded && (
         <CardContent className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-2">
               <Label>Name</Label>
               <Input
@@ -87,7 +87,7 @@ export function LeadCard({ lead, index, onUpdate, onRemove }: LeadCardProps) {
               <Input
                 value={lead.phone}
                 onChange={(e) => updateField("phone", e.target.value)}
-                placeholder="555-123-4567"
+                placeholder="5551234567"
               />
             </div>
             <div className="space-y-2">
@@ -106,10 +106,18 @@ export function LeadCard({ lead, index, onUpdate, onRemove }: LeadCardProps) {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label>Status Detail</Label>
+              <Input
+                value={lead.statusDetail}
+                onChange={(e) => updateField("statusDetail", e.target.value)}
+                placeholder="High Intent / Price Driven"
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
-            <Label>Executive Summary</Label>
+            <Label>Opportunity Summary</Label>
             <Textarea
               value={lead.executiveSummary}
               onChange={(e) => updateField("executiveSummary", e.target.value)}
@@ -121,7 +129,7 @@ export function LeadCard({ lead, index, onUpdate, onRemove }: LeadCardProps) {
           {/* Timeline */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Timeline</Label>
+              <Label>Timeline of Contact</Label>
               <Button
                 variant="ghost"
                 size="sm"
@@ -142,7 +150,7 @@ export function LeadCard({ lead, index, onUpdate, onRemove }: LeadCardProps) {
                     tl[i] = { ...tl[i], date: e.target.value };
                     updateField("timeline", tl);
                   }}
-                  placeholder="Date"
+                  placeholder="MM/DD/YYYY"
                 />
                 <Input
                   className="flex-1"
@@ -244,12 +252,12 @@ export function LeadCard({ lead, index, onUpdate, onRemove }: LeadCardProps) {
           </div>
 
           <div className="space-y-2">
-            <Label>What To Do Next</Label>
+            <Label>What Should Have Happened</Label>
             <Textarea
               value={lead.whatToDoNext}
               onChange={(e) => updateField("whatToDoNext", e.target.value)}
               rows={2}
-              placeholder="Recommended next steps..."
+              placeholder="What the dealership should have done at the inflection point..."
             />
           </div>
 

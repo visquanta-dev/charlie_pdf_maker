@@ -8,19 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { LeadCard } from "./LeadCard";
 import { PasteImport } from "./PasteImport";
 import type {
   AuditReportData,
   LeadEntry,
-  LeadStatus,
   ForwardFocusItem,
 } from "@/lib/types/audit";
 
@@ -30,6 +22,7 @@ function createEmptyLead(): LeadEntry {
     name: "",
     phone: "",
     status: "at-risk",
+    statusDetail: "",
     executiveSummary: "",
     timeline: [{ date: "", event: "" }],
     inflectionPoint: "",
@@ -45,18 +38,35 @@ function createEmptyReport(): AuditReportData {
     dealershipName: "",
     dealershipLocation: "",
     auditPeriod: "",
+    sourceReviewed: "",
+    audience: "",
     executiveSummary: "",
     performanceMetrics: {
       firstContacts: 0,
+      firstContactsRead: "",
       totalContacted: 0,
+      totalContactedRead: "",
       replied: 0,
+      repliedRead: "",
       replyRate: "0%",
+      replyRateRead: "",
       opportunitiesCreated: 0,
+      opportunitiesCreatedRead: "",
       opportunityRate: "0%",
+      opportunityRateRead: "",
     },
     executiveInterpretation: "",
+    additionalStoreNote: "",
     leads: [createEmptyLead()],
-    overallDistribution: { missedOpportunity: 0, atRisk: 0, bestPractice: 0 },
+    overallDistribution: {
+      missedOpportunity: 0,
+      missedOpportunityMeaning: "",
+      atRisk: 0,
+      atRiskMeaning: "",
+      bestPractice: 0,
+      bestPracticeMeaning: "",
+    },
+    communicationSummary: "",
     finalExecutiveTakeaway: "",
     forwardFocus: [{ title: "", description: "" }],
     closingSummary: "",
@@ -66,6 +76,7 @@ function createEmptyReport(): AuditReportData {
 type Action =
   | { type: "SET_FIELD"; field: string; value: string | number }
   | { type: "SET_METRIC"; field: string; value: string | number }
+  | { type: "SET_DISTRIBUTION"; field: string; value: string | number }
   | { type: "SET_LEADS"; leads: LeadEntry[] }
   | { type: "ADD_LEAD" }
   | { type: "REMOVE_LEAD"; index: number }
@@ -75,11 +86,14 @@ type Action =
   | { type: "UPDATE_FORWARD_FOCUS"; index: number; item: ForwardFocusItem }
   | { type: "REPLACE_ALL"; data: AuditReportData };
 
-function computeDistribution(leads: LeadEntry[]) {
+function computeDistribution(leads: LeadEntry[], current: AuditReportData["overallDistribution"]) {
   return {
     missedOpportunity: leads.filter((l) => l.status === "missed-opportunity").length,
+    missedOpportunityMeaning: current.missedOpportunityMeaning,
     atRisk: leads.filter((l) => l.status === "at-risk").length,
+    atRiskMeaning: current.atRiskMeaning,
     bestPractice: leads.filter((l) => l.status === "best-practice").length,
+    bestPracticeMeaning: current.bestPracticeMeaning,
   };
 }
 
@@ -95,23 +109,31 @@ function reducer(state: AuditReportData, action: Action): AuditReportData {
           [action.field]: action.value,
         },
       };
+    case "SET_DISTRIBUTION":
+      return {
+        ...state,
+        overallDistribution: {
+          ...state.overallDistribution,
+          [action.field]: action.value,
+        },
+      };
     case "SET_LEADS": {
       const leads = action.leads;
-      return { ...state, leads, overallDistribution: computeDistribution(leads) };
+      return { ...state, leads, overallDistribution: computeDistribution(leads, state.overallDistribution) };
     }
     case "ADD_LEAD": {
       const leads = [...state.leads, createEmptyLead()];
-      return { ...state, leads, overallDistribution: computeDistribution(leads) };
+      return { ...state, leads, overallDistribution: computeDistribution(leads, state.overallDistribution) };
     }
     case "REMOVE_LEAD": {
       const leads = state.leads.filter((_, i) => i !== action.index);
-      return { ...state, leads, overallDistribution: computeDistribution(leads) };
+      return { ...state, leads, overallDistribution: computeDistribution(leads, state.overallDistribution) };
     }
     case "UPDATE_LEAD": {
       const leads = state.leads.map((l, i) =>
         i === action.index ? action.lead : l
       );
-      return { ...state, leads, overallDistribution: computeDistribution(leads) };
+      return { ...state, leads, overallDistribution: computeDistribution(leads, state.overallDistribution) };
     }
     case "ADD_FORWARD_FOCUS":
       return {
@@ -136,6 +158,15 @@ function reducer(state: AuditReportData, action: Action): AuditReportData {
       return state;
   }
 }
+
+const metricFields = [
+  { key: "firstContacts", readKey: "firstContactsRead", label: "1st Contacts", inputType: "number" },
+  { key: "totalContacted", readKey: "totalContactedRead", label: "Total Contacted", inputType: "number" },
+  { key: "replied", readKey: "repliedRead", label: "Replied", inputType: "number" },
+  { key: "replyRate", readKey: "replyRateRead", label: "Reply Rate", inputType: "text" },
+  { key: "opportunitiesCreated", readKey: "opportunitiesCreatedRead", label: "Opportunities Created", inputType: "number" },
+  { key: "opportunityRate", readKey: "opportunityRateRead", label: "Opportunity Rate", inputType: "text" },
+] as const;
 
 export function AuditForm() {
   const [state, dispatch] = useReducer(reducer, null, createEmptyReport);
@@ -180,7 +211,7 @@ export function AuditForm() {
         <CardHeader>
           <CardTitle className="text-lg">Dealership Information</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-3">
+        <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-2">
             <Label>Dealership Name</Label>
             <Input
@@ -188,7 +219,7 @@ export function AuditForm() {
               onChange={(e) =>
                 dispatch({ type: "SET_FIELD", field: "dealershipName", value: e.target.value })
               }
-              placeholder="ABC Motors"
+              placeholder="Corwin Ford Nampa"
             />
           </div>
           <div className="space-y-2">
@@ -198,7 +229,7 @@ export function AuditForm() {
               onChange={(e) =>
                 dispatch({ type: "SET_FIELD", field: "dealershipLocation", value: e.target.value })
               }
-              placeholder="Oklahoma City, OK"
+              placeholder="Nampa, ID"
             />
           </div>
           <div className="space-y-2">
@@ -208,7 +239,27 @@ export function AuditForm() {
               onChange={(e) =>
                 dispatch({ type: "SET_FIELD", field: "auditPeriod", value: e.target.value })
               }
-              placeholder="March 1-15, 2026"
+              placeholder="Last 30 Days"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Source Reviewed</Label>
+            <Input
+              value={state.sourceReviewed}
+              onChange={(e) =>
+                dispatch({ type: "SET_FIELD", field: "sourceReviewed", value: e.target.value })
+              }
+              placeholder="Instant Speed to Lead / AutoTrader"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Audience</Label>
+            <Input
+              value={state.audience}
+              onChange={(e) =>
+                dispatch({ type: "SET_FIELD", field: "audience", value: e.target.value })
+              }
+              placeholder="GM and Internet Director"
             />
           </div>
         </CardContent>
@@ -225,8 +276,8 @@ export function AuditForm() {
             onChange={(e) =>
               dispatch({ type: "SET_FIELD", field: "executiveSummary", value: e.target.value })
             }
-            rows={4}
-            placeholder="Overall audit summary..."
+            rows={6}
+            placeholder="Overall audit summary... Use bullet lines starting with - for bullet points in the PDF."
           />
         </CardContent>
       </Card>
@@ -236,27 +287,28 @@ export function AuditForm() {
         <CardHeader>
           <CardTitle className="text-lg">Performance Snapshot</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-3">
-          {([
-            ["firstContacts", "1st Contacts", "number"],
-            ["totalContacted", "Total Contacted", "number"],
-            ["replied", "Replied", "number"],
-            ["replyRate", "Reply Rate", "text"],
-            ["opportunitiesCreated", "Opportunities Created", "number"],
-            ["opportunityRate", "Opportunity Rate", "text"],
-          ] as const).map(([field, label, type]) => (
-            <div key={field} className="space-y-2">
-              <Label>{label}</Label>
+        <CardContent className="space-y-4">
+          {metricFields.map(({ key, readKey, label, inputType }) => (
+            <div key={key} className="grid gap-3 sm:grid-cols-[200px_100px_1fr]">
+              <Label className="self-center font-medium">{label}</Label>
               <Input
-                type={type === "number" ? "number" : "text"}
-                value={state.performanceMetrics[field]}
+                type={inputType === "number" ? "number" : "text"}
+                value={state.performanceMetrics[key as keyof typeof state.performanceMetrics]}
                 onChange={(e) =>
                   dispatch({
                     type: "SET_METRIC",
-                    field,
-                    value: type === "number" ? Number(e.target.value) : e.target.value,
+                    field: key,
+                    value: inputType === "number" ? Number(e.target.value) : e.target.value,
                   })
                 }
+                placeholder="Value"
+              />
+              <Input
+                value={state.performanceMetrics[readKey as keyof typeof state.performanceMetrics] as string}
+                onChange={(e) =>
+                  dispatch({ type: "SET_METRIC", field: readKey, value: e.target.value })
+                }
+                placeholder="Executive Read (description)"
               />
             </div>
           ))}
@@ -276,6 +328,23 @@ export function AuditForm() {
             }
             rows={4}
             placeholder="Interpretation of performance metrics..."
+          />
+        </CardContent>
+      </Card>
+
+      {/* Section: Additional Store Note */}
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="text-lg">Additional Store Note (Optional)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Textarea
+            value={state.additionalStoreNote}
+            onChange={(e) =>
+              dispatch({ type: "SET_FIELD", field: "additionalStoreNote", value: e.target.value })
+            }
+            rows={3}
+            placeholder="Optional note displayed in a blue callout box..."
           />
         </CardContent>
       </Card>
@@ -322,6 +391,65 @@ export function AuditForm() {
 
       <Separator />
 
+      {/* Section: Distribution Meanings */}
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="text-lg">Distribution Executive Meanings</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Missed Opportunity Meaning</Label>
+            <Textarea
+              value={state.overallDistribution.missedOpportunityMeaning}
+              onChange={(e) =>
+                dispatch({ type: "SET_DISTRIBUTION", field: "missedOpportunityMeaning", value: e.target.value })
+              }
+              rows={2}
+              placeholder="Most losses occurred at execution moments after solid initial engagement."
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>At-Risk Meaning</Label>
+            <Textarea
+              value={state.overallDistribution.atRiskMeaning}
+              onChange={(e) =>
+                dispatch({ type: "SET_DISTRIBUTION", field: "atRiskMeaning", value: e.target.value })
+              }
+              rows={2}
+              placeholder="One lead included a compliance issue..."
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Best Practice Meaning</Label>
+            <Textarea
+              value={state.overallDistribution.bestPracticeMeaning}
+              onChange={(e) =>
+                dispatch({ type: "SET_DISTRIBUTION", field: "bestPracticeMeaning", value: e.target.value })
+              }
+              rows={2}
+              placeholder="The store is generating opportunity but not yet converting..."
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section: Communication Summary */}
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="text-lg">Communication Summary Across All Leads</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Textarea
+            value={state.communicationSummary}
+            onChange={(e) =>
+              dispatch({ type: "SET_FIELD", field: "communicationSummary", value: e.target.value })
+            }
+            rows={4}
+            placeholder="Summary of communication patterns across all leads..."
+          />
+        </CardContent>
+      </Card>
+
       {/* Section: Final Executive Takeaway */}
       <Card className="border-border/50">
         <CardHeader>
@@ -339,10 +467,10 @@ export function AuditForm() {
         </CardContent>
       </Card>
 
-      {/* Section: Forward Focus */}
+      {/* Section: Critical Training Focus Areas */}
       <Card className="border-border/50">
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-lg">Forward Focus</CardTitle>
+          <CardTitle className="text-lg">Critical Training Focus Areas</CardTitle>
           <Button
             variant="outline"
             size="sm"
@@ -364,7 +492,7 @@ export function AuditForm() {
                       item: { ...item, title: e.target.value },
                     })
                   }
-                  placeholder="Training topic"
+                  placeholder="Focus area title (bold in PDF)"
                 />
                 <Textarea
                   value={item.description}
@@ -376,7 +504,7 @@ export function AuditForm() {
                     })
                   }
                   rows={2}
-                  placeholder="Description..."
+                  placeholder="Description (leave title empty for paragraph-only Forward Focus text)"
                 />
               </div>
               {state.forwardFocus.length > 1 && (
