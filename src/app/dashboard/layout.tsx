@@ -1,15 +1,8 @@
-import { redirect } from "next/navigation";
-import { isAuthenticated } from "@/lib/auth";
-
-export default async function DashboardLayout({
+export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  if (!(await isAuthenticated())) {
-    redirect("/");
-  }
-
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border/50 bg-card/50">
@@ -20,32 +13,9 @@ export default async function DashboardLayout({
             </div>
             <span className="font-semibold">Visquanta</span>
           </div>
-          <LogoutButton />
         </div>
       </header>
       <main className="mx-auto max-w-7xl p-6">{children}</main>
     </div>
-  );
-}
-
-function LogoutButton() {
-  return (
-    <form
-      action={async () => {
-        "use server";
-        const { cookies } = await import("next/headers");
-        const cookieStore = await cookies();
-        cookieStore.set("visquanta-audit-auth", "", { maxAge: 0, path: "/" });
-        const { redirect } = await import("next/navigation");
-        redirect("/");
-      }}
-    >
-      <button
-        type="submit"
-        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
-        Sign Out
-      </button>
-    </form>
   );
 }
